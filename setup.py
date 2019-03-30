@@ -32,7 +32,6 @@ setuptools.setup(
         'pytest',
         'pytest-asyncio'
     ],
-    tests_require=test_requirements,
     url='https://github.com/omarryhan/aiopaypal',
     packages=setuptools.find_packages(),
     classifiers=[
