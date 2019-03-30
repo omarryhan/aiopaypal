@@ -13,7 +13,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(
 
     name='aiopaypal',
-    version="0.1.0",
+    version="0.1.1",
     author='Omar Ryhan',
     author_email='omarryhan@gmail.com',
     license='GNU',

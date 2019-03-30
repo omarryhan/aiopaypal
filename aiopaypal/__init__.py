@@ -41,20 +41,29 @@ class PaypalError(Exception):
     pass
 
 class Paypal:
-    def __init__(self, app=None, raise_for_status=True, logger=None):
+    def __init__(
+        self, 
+        app=None, 
+        raise_for_status=True, 
+        logger=None,
+        mode=None,
+        client_id=None,
+        client_secret=None,
+        merchant_id=None,
+        email=None
+    ):
         global _logger
         self.raise_for_status = raise_for_status
 
         # paypal configs
         if app is not None:
-            self.mode = _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'mode') or 'sandbox'
-            self.client_id = _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_id')
-            self.client_secret = _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_secret')
+            self.mode = mode or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'mode') or 'sandbox'
+            self.client_id = client_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_id')
+            self.client_secret = client_secret or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_secret')
             self.base_url = LIVE_URL if self.mode == 'live' else SANDBOX_URL
-            self.merchant_id = _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'merchant_id')
-            self.email = _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'email')
+            self.merchant_id = merchant_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'merchant_id')
+            self.email = email or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'email')
 
-            # Append to app
             if not hasattr(app, 'exts'):
                 app.exts = Extensions()
             app.exts.paypal = self
