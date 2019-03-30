@@ -179,6 +179,7 @@ class Paypal:
                         _logger.error('JSON:')
                         _logger.error(str(json_resp))
                         _logger.error('\n')
+                        print(json_resp)
                         raise PaypalError(e)
                     else:
                         return json_resp
