@@ -5,6 +5,7 @@ import base64
 import asyncio
 import binascii
 from logging import getLogger
+from multidict import MultiDict
 
 import aiofiles
 from aiohttp import ClientSession
@@ -14,7 +15,7 @@ from OpenSSL import crypto
 
 __all__ = ['PaypalError', 'Paypal']
 
-_logger = getLogger(name='Aiopaypal')
+_logger = getLogger(__name__)
 _logger.setLevel('DEBUG')
 
 SANDBOX_URL = 'https://api.sandbox.paypal.com'
@@ -56,14 +57,14 @@ class Paypal:
         self.raise_for_status = raise_for_status
 
         # paypal configs
-        if app is not None:
-            self.mode = mode or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'mode') or 'sandbox'
-            self.client_id = client_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_id')
-            self.client_secret = client_secret or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_secret')
-            self.base_url = LIVE_URL if self.mode == 'live' else SANDBOX_URL
-            self.merchant_id = merchant_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'merchant_id')
-            self.email = email or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'email')
+        self.mode = mode or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'mode') or 'sandbox'
+        self.client_id = client_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_id')
+        self.client_secret = client_secret or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_secret')
+        self.base_url = LIVE_URL if self.mode == 'live' else SANDBOX_URL
+        self.merchant_id = merchant_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'merchant_id')
+        self.email = email or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'email')
 
+        if app is not None:
             if not hasattr(app, 'exts'):
                 app.exts = Extensions()
             app.exts.paypal = self
@@ -118,8 +119,7 @@ class Paypal:
             raise PaypalError('No user access token')
 
     #----------- Request ----------------#
-
-    async def _request(self, method, url, base_url=None, headers=None, data=None, json=None, auth=None, as_client=True, add_base=True):
+    async def _request(self, method, url, base_url=None, headers=None, data=None, json=None, auth=None, as_client=True, add_base=True, extra_headers=None):
         # Refresh and prep headers
         await self.refresh_access(as_client)
         if headers is None:
@@ -128,7 +128,10 @@ class Paypal:
             headers = {**headers, **self._client_access_headers}
         elif as_client is False:
             headers = {**headers, **self._user_access_headers}
-        
+
+        if isinstance(extra_headers, (dict, MultiDict)):
+            headers = {**headers, extra_headers}
+
         # Prep url
         if add_base is True:
             base_url = base_url or self.base_url
@@ -188,14 +191,13 @@ class Paypal:
                         _logger.error('JSON:')
                         _logger.error(str(json_resp))
                         _logger.error('\n')
-                        print(json_resp)
                         raise PaypalError(e)
                     else:
                         return json_resp
                 else:
                     return json_resp
                 
-    async def request(self, method, url, data=None, json=None, as_client=True, add_base=True):
+    async def request(self, method, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -213,10 +215,11 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
         )
 
-    async def get(self, url, data=None, json=None, as_client=True, add_base=True):
+    async def get(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -234,11 +237,12 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
         )
 
 
-    async def post(self, url, data=None, json=None, as_client=True, add_base=True):
+    async def post(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -256,10 +260,11 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
         )
 
-    async def update(self, url, data=None, json=None, as_client=True, add_base=True):
+    async def update(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -277,11 +282,12 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
         )
 
 
-    async def delete(self, url, data=None, json=None, as_client=True, add_base=True):
+    async def delete(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -299,10 +305,12 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
+
         )
 
-    async def patch(self, url, data=None, json=None, as_client=True, add_base=True):
+    async def patch(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -320,10 +328,11 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
         )
 
-    async def options(self, url, data=None, json=None, as_client=True, add_base=True):
+    async def options(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
         Arguments:
 
@@ -341,7 +350,8 @@ class Paypal:
             data=data,
             json=json,
             as_client=as_client,
-            add_base=add_base
+            add_base=add_base,
+            extra_headers=extra_headers
         )
     #----------- Auth -------------#
 
