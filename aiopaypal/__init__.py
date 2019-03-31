@@ -130,7 +130,7 @@ class Paypal:
             headers = {**headers, **self._user_access_headers}
 
         if isinstance(extra_headers, (dict, MultiDict)):
-            headers = {**headers, extra_headers}
+            headers = {**headers, **extra_headers}
 
         # Prep url
         if add_base is True:
