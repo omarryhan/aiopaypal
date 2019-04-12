@@ -9,7 +9,7 @@
 
 # Aiopaypal
 
-Async Python Wrapper for Paypal's REST API
+Async Wrapper for Paypal's REST API
 
 ## Setup ⚙️
 
