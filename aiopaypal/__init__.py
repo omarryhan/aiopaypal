@@ -244,6 +244,11 @@ class Paypal:
 
     async def post(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
         '''
+        Note:
+
+            Always pass a content-type = json if you'll be sending posts requests without a body.
+            Otherwise paypal will return a 500 with no details.
+
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
