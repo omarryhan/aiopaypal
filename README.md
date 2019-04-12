@@ -7,7 +7,9 @@
   </p>
 </p>
 
-# Async Python Wrapper Paypal's REST API
+# Aiopaypal
+
+Async Python Wrapper for Paypal's REST API
 
 ## Setup ⚙️
 
