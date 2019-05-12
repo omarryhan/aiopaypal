@@ -28,13 +28,15 @@ $ pip install aiopaypal
 
 ### Init
 
-    from aiopaypal import Paypal
+```python 3.7
+from aiopaypal import Paypal
 
-    aiopaypal = Paypal(
-        mode='live',
-        client_id='client_id',
-        client_secret='client_secret',
-    )
+aiopaypal = Paypal(
+    mode='live',
+    client_id='client_id',
+    client_secret='client_secret',
+)
+```
 
 ### Create a user subscription
 
