@@ -13,13 +13,13 @@ from aiohttp.client_exceptions import ClientError
 from OpenSSL import crypto
 
 
-__all__ = ['PaypalError', 'Paypal']
+__all__ = ["PaypalError", "Paypal"]
 
 _logger = getLogger(__name__)
-_logger.setLevel('DEBUG')
+_logger.setLevel("DEBUG")
 
-SANDBOX_URL = 'https://api.sandbox.paypal.com'
-LIVE_URL = 'https://api.paypal.com'
+SANDBOX_URL = "https://api.sandbox.paypal.com"
+LIVE_URL = "https://api.paypal.com"
 
 
 ROOT_CERT_PATH = "data/DigiCertHighAssuranceEVRootCA.crt.pem"
@@ -35,40 +35,55 @@ def _safe_getitem(dct, *keys):
             return None
     return dct
 
+
 class Extensions:
     pass
+
 
 class PaypalError(Exception):
     pass
 
+
 class Paypal:
     def __init__(
-        self, 
-        app=None, 
-        raise_for_status=True, 
+        self,
+        app=None,
+        raise_for_status=True,
         logger=None,
         mode=None,
         client_id=None,
         client_secret=None,
         merchant_id=None,
-        email=None
+        email=None,
     ):
         global _logger
         self.raise_for_status = raise_for_status
 
         # paypal configs
-        self.mode = mode or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'mode') or 'sandbox'
-        self.client_id = client_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_id')
-        self.client_secret = client_secret or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'client_secret')
-        self.base_url = LIVE_URL if self.mode == 'live' else SANDBOX_URL
-        self.merchant_id = merchant_id or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'merchant_id')
-        self.email = email or _safe_getitem(app.config, 'SERVICES', 'paypal-v1', 'creds', 'email')
+        self.mode = (
+            mode
+            or _safe_getitem(app.config, "SERVICES", "paypal-v1", "creds", "mode")
+            or "sandbox"
+        )
+        self.client_id = client_id or _safe_getitem(
+            app.config, "SERVICES", "paypal-v1", "creds", "client_id"
+        )
+        self.client_secret = client_secret or _safe_getitem(
+            app.config, "SERVICES", "paypal-v1", "creds", "client_secret"
+        )
+        self.base_url = LIVE_URL if self.mode == "live" else SANDBOX_URL
+        self.merchant_id = merchant_id or _safe_getitem(
+            app.config, "SERVICES", "paypal-v1", "creds", "merchant_id"
+        )
+        self.email = email or _safe_getitem(
+            app.config, "SERVICES", "paypal-v1", "creds", "email"
+        )
 
         if app is not None:
-            if not hasattr(app, 'exts'):
+            if not hasattr(app, "exts"):
                 app.exts = Extensions()
             app.exts.paypal = self
-        
+
         # Set logger
         if logger is not None:
             _logger = logger
@@ -87,39 +102,44 @@ class Paypal:
         self.user_expires_in = None
         self.user_scope = None
 
-    #-----------Headers--------------_#
+    # -----------Headers--------------_#
 
     @property
     def _client_auth_headers(self):
         if not self.client_id or not self.client_secret:
-            raise PaypalError('client ID or client secret were not found')
-        creds = "{}:{}".format(
-            self.client_id,
-            self.client_secret
-        )
-        token = base64.b64encode(
-            creds.encode()
-        ).decode().strip('\n').strip('\r')
-        return dict(
-            Authorization='Basic {}'.format(token)
-        )
+            raise PaypalError("client ID or client secret were not found")
+        creds = "{}:{}".format(self.client_id, self.client_secret)
+        token = base64.b64encode(creds.encode()).decode().strip("\n").strip("\r")
+        return dict(Authorization="Basic {}".format(token))
 
     @property
     def _client_access_headers(self):
         if self.client_access_token is not None:
-            return dict(Authorization='Bearer {}'.format(self.client_access_token))
+            return dict(Authorization="Bearer {}".format(self.client_access_token))
         else:
-            raise PaypalError('No client access token')
+            raise PaypalError("No client access token")
 
     @property
     def _user_access_headers(self):
         if self.user_access_token is not None:
-            return dict(Authorization='Bearer {}'.format(self.user_access_token))
+            return dict(Authorization="Bearer {}".format(self.user_access_token))
         else:
-            raise PaypalError('No user access token')
+            raise PaypalError("No user access token")
 
-    #----------- Request ----------------#
-    async def _request(self, method, url, base_url=None, headers=None, data=None, json=None, auth=None, as_client=True, add_base=True, extra_headers=None):
+    # ----------- Request ----------------#
+    async def _request(
+        self,
+        method,
+        url,
+        base_url=None,
+        headers=None,
+        data=None,
+        json=None,
+        auth=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
         # Refresh and prep headers
         await self.refresh_access(as_client)
         if headers is None:
@@ -135,19 +155,15 @@ class Paypal:
         # Prep url
         if add_base is True:
             base_url = base_url or self.base_url
-            if url[0] != '/':
-                url = '/' + url
+            if url[0] != "/":
+                url = "/" + url
             url = base_url + url
 
         # Send
         async with ClientSession(auth=auth) as sess:
-            _logger.info('>>> ' + method + ' ' + str(url))
+            _logger.info(">>> " + method + " " + str(url))
             async with sess.request(
-                method=method,
-                url=url,
-                headers=headers,
-                data=data,
-                json=json
+                method=method, url=url, headers=headers, data=data, json=json
             ) as resp:
                 # Resolve JSON
                 try:
@@ -159,7 +175,7 @@ class Paypal:
                     except Exception as e:
                         _logger.error(str(e))
                         json_resp = {}
-                
+
                 if not json_resp:  # In case it's an empty string or list
                     json_resp = {}
 
@@ -169,36 +185,45 @@ class Paypal:
                         resp.raise_for_status()
                     except ClientError as e:
                         # Debug
-                        _logger.error('\n')
-                        _logger.error('URL:')
+                        _logger.error("\n")
+                        _logger.error("URL:")
                         _logger.error(str(url))
-                        _logger.error('\n')
-                        _logger.error('STATUS:')
+                        _logger.error("\n")
+                        _logger.error("STATUS:")
                         _logger.error(str(resp.status))
-                        _logger.error('\n')
-                        _logger.error('HEADERS:')
+                        _logger.error("\n")
+                        _logger.error("HEADERS:")
                         _logger.error(str(headers))
-                        _logger.error('\n')
-                        _logger.error('FULL HEADERS')
+                        _logger.error("\n")
+                        _logger.error("FULL HEADERS")
                         _logger.error(resp.request_info.headers)
-                        _logger.error('\n')
-                        _logger.error('REQ JSON')
+                        _logger.error("\n")
+                        _logger.error("REQ JSON")
                         _logger.error(json)
-                        _logger.error('\n')
-                        _logger.error('REQ DATA')
+                        _logger.error("\n")
+                        _logger.error("REQ DATA")
                         _logger.error(data)
-                        _logger.error('\n')
-                        _logger.error('JSON:')
+                        _logger.error("\n")
+                        _logger.error("JSON:")
                         _logger.error(str(json_resp))
-                        _logger.error('\n')
+                        _logger.error("\n")
                         raise PaypalError(e)
                     else:
                         return json_resp
                 else:
                     return json_resp
-                
-    async def request(self, method, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+
+    async def request(
+        self,
+        method,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
@@ -208,7 +233,7 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
             method=method,
             url=url,
@@ -216,11 +241,19 @@ class Paypal:
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
+            extra_headers=extra_headers,
         )
 
-    async def get(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+    async def get(
+        self,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
@@ -230,20 +263,27 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
-            method='GET',
+            method="GET",
             url=url,
             data=data,
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
+            extra_headers=extra_headers,
         )
 
-
-    async def post(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+    async def post(
+        self,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Note:
 
             Always pass a content-type = json if you'll be sending posts requests without a body.
@@ -258,19 +298,27 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
-            method='POST',
+            method="POST",
             url=url,
             data=data,
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
+            extra_headers=extra_headers,
         )
 
-    async def update(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+    async def update(
+        self,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
@@ -280,20 +328,27 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
-            method='PUT',
+            method="PUT",
             url=url,
             data=data,
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
+            extra_headers=extra_headers,
         )
 
-
-    async def delete(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+    async def delete(
+        self,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
@@ -303,20 +358,27 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
-            method='DELETE',
+            method="DELETE",
             url=url,
             data=data,
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
-
+            extra_headers=extra_headers,
         )
 
-    async def patch(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+    async def patch(
+        self,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
@@ -326,19 +388,27 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
-            method='PATCH',
+            method="PATCH",
             url=url,
             data=data,
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
+            extra_headers=extra_headers,
         )
 
-    async def options(self, url, data=None, json=None, as_client=True, add_base=True, extra_headers=None):
-        '''
+    async def options(
+        self,
+        url,
+        data=None,
+        json=None,
+        as_client=True,
+        add_base=True,
+        extra_headers=None,
+    ):
+        """
         Arguments:
 
             url: second part of the url e.g. /v1/payments ...
@@ -348,19 +418,20 @@ class Paypal:
                               for as_user set it to false
                               for as_anon set it to None
 
-        '''
+        """
         return await self._request(
-            method='OPTIONS',
+            method="OPTIONS",
             url=url,
             data=data,
             json=json,
             as_client=as_client,
             add_base=add_base,
-            extra_headers=extra_headers
+            extra_headers=extra_headers,
         )
-    #----------- Auth -------------#
 
-    #----Helpers
+    # ----------- Auth -------------#
+
+    # ----Helpers
     @property
     def is_client_access_expired(self):
         if self.client_expires_at is not None:
@@ -376,45 +447,50 @@ class Paypal:
             return True
 
     def _set_client_access_token(self, json_resp):
-        self.client_access_token = json_resp['access_token']
-        self.client_expires_in = json_resp['expires_in'] + 60  # account for clock skew
-        self.client_expires_at = datetime.datetime.utcnow() + \
-                          datetime.timedelta(seconds=self.client_expires_in) 
-        self.app_id = json_resp['app_id']
-        self.client_scope = json_resp['scope']
+        self.client_access_token = json_resp["access_token"]
+        self.client_expires_in = json_resp["expires_in"] + 60  # account for clock skew
+        self.client_expires_at = datetime.datetime.utcnow() + datetime.timedelta(
+            seconds=self.client_expires_in
+        )
+        self.app_id = json_resp["app_id"]
+        self.client_scope = json_resp["scope"]
 
-    def _set_user_access_token(self, json_resp): 
-        self.user_access_token = json_resp['access_token']
-        self.user_expires_in = json_resp['expires_in'] + 60  # account for clock skew
-        self.user_expires_at = datetime.datetime.utcnow() + \
-                          datetime.timedelta(seconds=self.user_expires_in) 
-        self.user_scope = json_resp['scope']
+    def _set_user_access_token(self, json_resp):
+        self.user_access_token = json_resp["access_token"]
+        self.user_expires_in = json_resp["expires_in"] + 60  # account for clock skew
+        self.user_expires_at = datetime.datetime.utcnow() + datetime.timedelta(
+            seconds=self.user_expires_in
+        )
+        self.user_scope = json_resp["scope"]
 
-    #-----Authorize
+    # -----Authorize
     async def authorize_client(self):
         resp = await self._request(
-            method='POST',
+            method="POST",
             headers=self._client_auth_headers,
-            url='/v1/oauth2/token',
-            data=dict(grant_type='client_credentials'),
-            as_client=None
+            url="/v1/oauth2/token",
+            data=dict(grant_type="client_credentials"),
+            as_client=None,
         )
         self._set_client_access_token(resp)
 
     async def authorize_user(self, grant):
         # TODO
-        args = """grant_type=authorization_code
+        args = (
+            """grant_type=authorization_code
         &response_type=token&
         redirect_uri=urn:ietf:wg:
-        oauth:2.0:oob&code=""" + grant
+        oauth:2.0:oob&code="""
+            + grant
+        )
 
-    #-----Authentication
+    # -----Authentication
     async def authorization_uri(self):
         # TODO
-        ''' https://developer.paypal.com/docs/integration/direct/identity/get-user-consent/ '''
+        """ https://developer.paypal.com/docs/integration/direct/identity/get-user-consent/ """
         pass
 
-    #------Refresh
+    # ------Refresh
     async def refresh_access(self, as_client=True):
         # Refresh tokens
         if as_client is True:
@@ -431,21 +507,21 @@ class Paypal:
         # TODO
         args = "grant_type=refresh_token&refresh_token=" + self.client_refresh_token
 
-    #----- Openid connect
+    # ----- Openid connect
     # TODO
 
-    #----- Crypto
+    # ----- Crypto
     async def verify_from_headers(self, event_body, headers, webhook_id):
         if isinstance(event_body, dict):
             event_body = str(event_body)
         elif isinstance(event_body, bytes):
             event_body = event_body.decode()
         try:
-            transmission_id = headers['Paypal-Transmission-Id'.lower()]
-            timestamp = headers['Paypal-Transmission-Time'.lower()]
-            actual_sig = headers['Paypal-Transmission-Sig'.lower()]
-            cert_url = headers['Paypal-Cert-Url'.lower()]
-            auth_algo = headers['PayPal-Auth-Algo'.lower()]
+            transmission_id = headers["Paypal-Transmission-Id".lower()]
+            timestamp = headers["Paypal-Transmission-Time".lower()]
+            actual_sig = headers["Paypal-Transmission-Sig".lower()]
+            cert_url = headers["Paypal-Cert-Url".lower()]
+            auth_algo = headers["PayPal-Auth-Algo".lower()]
         except KeyError as e:
             raise PaypalError(e)
         return await self.verify(
@@ -455,38 +531,44 @@ class Paypal:
             event_body=str(event_body),
             cert_url=cert_url,
             actual_sig=actual_sig,
-            auth_algo=auth_algo
+            auth_algo=auth_algo,
         )
 
-    async def verify(self, transmission_id, timestamp, webhook_id, event_body, cert_url, actual_sig, auth_algo='sha256'):
+    async def verify(
+        self,
+        transmission_id,
+        timestamp,
+        webhook_id,
+        event_body,
+        cert_url,
+        actual_sig,
+        auth_algo="sha256",
+    ):
         AUTH_ALGO_MAP = {
-            'SHA256withRSA': 'sha256WithRSAEncryption',
-            'SHA1withRSA': 'sha1WithRSAEncryption'
+            "SHA256withRSA": "sha256WithRSAEncryption",
+            "SHA1withRSA": "sha1WithRSAEncryption",
         }
         try:
-            if auth_algo != 'sha256' and auth_algo not in AUTH_ALGO_MAP.values():
+            if auth_algo != "sha256" and auth_algo not in AUTH_ALGO_MAP.values():
                 auth_algo = AUTH_ALGO_MAP[auth_algo]
         except KeyError as e:
-            _logger.error('Authorization algorithm mapping not found in verify method.')
+            _logger.error("Authorization algorithm mapping not found in verify method.")
             raise PaypalError(e)
         cert = await self._get_cert(cert_url)
 
-        verified = (
-            await self._verify_certificate(cert) and \
-            self._verify_signature(
-                transmission_id, 
-                timestamp, 
-                webhook_id, 
-                event_body, 
-                cert, 
-                actual_sig, 
-                auth_algo
-            )
+        verified = await self._verify_certificate(cert) and self._verify_signature(
+            transmission_id,
+            timestamp,
+            webhook_id,
+            event_body,
+            cert,
+            actual_sig,
+            auth_algo,
         )
         if verified is not True:
-            raise PaypalError('Notification verification status: {}'.format(verified))
+            raise PaypalError("Notification verification status: {}".format(verified))
         return verified
-        #PATH = "/v1/no1tifications/webhooks-events/"
+        # PATH = "/v1/no1tifications/webhooks-events/"
 
     @staticmethod
     async def _get_cert(cert_url):
@@ -498,7 +580,9 @@ class Paypal:
                     resp.raise_for_status()
                     text = await resp.text()
                     if not text:
-                        raise PaypalError("Coultn't fetch certificate from {}".format(cert_url))
+                        raise PaypalError(
+                            "Coultn't fetch certificate from {}".format(cert_url)
+                        )
             cert = crypto.load_certificate(crypto.FILETYPE_PEM, text)
             return cert
         except ClientError as e:
@@ -507,7 +591,11 @@ class Paypal:
     async def _verify_certificate(self, cert):
         """Verify that certificate is unexpired, has valid common name and is trustworthy
         """
-        if await self._verify_certificate_chain(cert) and self._is_common_name_valid(cert) and not cert.has_expired():
+        if (
+            await self._verify_certificate_chain(cert)
+            and self._is_common_name_valid(cert)
+            and not cert.has_expired()
+        ):
             return True
         else:
             raise PaypalError()
@@ -544,15 +632,31 @@ class Paypal:
         if cert.get_subject().commonName.lower().endswith(".paypal.com"):
             return True
         else:
-            raise PaypalError('Certificate common name not valid')
+            raise PaypalError("Certificate common name not valid")
 
-    def _verify_signature(self, transmission_id, timestamp, webhook_id, event_body, cert, actual_sig, auth_algo):
+    def _verify_signature(
+        self,
+        transmission_id,
+        timestamp,
+        webhook_id,
+        event_body,
+        cert,
+        actual_sig,
+        auth_algo,
+    ):
         """Verify that the webhook payload received is from PayPal,
         unaltered and targeted towards correct recipient
         """
-        expected_sig = self._get_expected_sig(transmission_id, timestamp, webhook_id, event_body)
+        expected_sig = self._get_expected_sig(
+            transmission_id, timestamp, webhook_id, event_body
+        )
         try:
-            crypto.verify(cert, base64.b64decode(actual_sig), expected_sig.encode('utf-8'), auth_algo)
+            crypto.verify(
+                cert,
+                base64.b64decode(actual_sig),
+                expected_sig.encode("utf-8"),
+                auth_algo,
+            )
             return True
         except Exception as e:
             raise PaypalError(e)
@@ -561,6 +665,6 @@ class Paypal:
     def _get_expected_sig(transmission_id, timestamp, webhook_id, event_body):
         """Get the input string to generate the HMAC signature
         """
-        data = str(binascii.crc32(event_body.encode('utf-8')) & 0xffffffff)
+        data = str(binascii.crc32(event_body.encode("utf-8")) & 0xFFFFFFFF)
         expected_sig = transmission_id + "|" + timestamp + "|" + webhook_id + "|" + data
         return expected_sig
