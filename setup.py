@@ -8,12 +8,12 @@ mypath = os.path.dirname(os.path.abspath(__file__))
 print([f for f in listdir(mypath) if isfile(join(mypath, f))])
 
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="aiopaypal",
-    version="0.1.3",
+    version="0.1.4",
     author="Omar Ryhan",
     author_email="omarryhan@gmail.com",
     license="GNU",
