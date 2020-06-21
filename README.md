@@ -245,22 +245,4 @@ async def hook(request):
 
 ### Create a user payment
 
-    ... Figured it out? Help others and make a pull request :)
-
-## Contact 📧
-
-I currently work as a freelance software devloper. Like my work and got a gig for me?
-
-Want to hire me fulltime? Send me an email @ omarryhan@gmail.com
-
-## Buy me a coffee ☕
-
-**Bitcoin:** 3NmywNKr1Lzo8gyNXFUnzvboziACpEa31z
-
-**Ethereum:** 0x1E1400C31Cd813685FE0f6D29E0F91c1Da4675aE
-
-**Bitcoin Cash:** qqzn7rsav6hr3zqcp4829s48hvsvjat4zq7j42wkxd
-
-**Litecoin:** MB5M3cE3jE4E8NwGCWoFjLvGqjDqPyyEJp
-
-**Paypal:** https://paypal.me/omarryhan
+Figured it out? Help others and make a pull request :)
